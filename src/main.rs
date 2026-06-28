@@ -8,10 +8,9 @@ mod systems;
 use bevy::prelude::*;
 use components::*;
 use plugin::RacePlugin;
+use resources::RaceConfig;
 
 const START_X: f32 = 0.0;
-const CHECKPOINT_X: f32 = 100.0;
-const FINISH_X: f32 = 210.0;
 const LANES: [f32; 8] = [-7.0, -5.0, -3.0, -1.0, 1.0, 3.0, 5.0, 7.0];
 
 fn main() {
@@ -22,7 +21,12 @@ fn main() {
         .run();
 }
 
-fn spawn_scene(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut materials: ResMut<Assets<StandardMaterial>>) {
+fn spawn_scene(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    config: Res<RaceConfig>,
+) {
     commands.spawn((
         Camera3d::default(),
         Transform::from_xyz(-12.0, 6.0, 0.0).looking_at(Vec3::new(START_X + 5.0, 0.0, 0.0), Vec3::Y),
@@ -36,7 +40,7 @@ fn spawn_scene(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut mat
         Transform::default().looking_to(Vec3::new(-0.5, -1.0, -0.3), Vec3::Y),
     ));
 
-    let track_mesh = meshes.add(Plane3d::default().mesh().size(FINISH_X + 20.0, 20.0));
+    let track_mesh = meshes.add(Plane3d::default().mesh().size(config.track_length + 20.0, 20.0));
     let track_material = materials.add(StandardMaterial {
         base_color: Color::srgb(0.25, 0.25, 0.28),
         ..default()
@@ -44,7 +48,7 @@ fn spawn_scene(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut mat
     commands.spawn((
         Mesh3d(track_mesh),
         MeshMaterial3d(track_material),
-        Transform::from_xyz(FINISH_X / 2.0, -0.05, 0.0),
+        Transform::from_xyz(config.track_length / 2.0, -0.05, 0.0),
     ));
 }
 
@@ -52,7 +56,10 @@ fn spawn_track_and_bikes(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    config: Res<RaceConfig>,
 ) {
+    let checkpoint_x = config.track_length * 100.0 / 210.0;
+    let finish_x = config.track_length;
     let bike_mesh = meshes.add(Cuboid::new(1.6, 0.6, 0.4));
 
     let player_material = materials.add(StandardMaterial {
@@ -68,7 +75,6 @@ fn spawn_track_and_bikes(
         EffectiveSpeed::default(),
         SpeedStats {
             base_speed: 14.0,
-            accel: 5.0,
             handling: 1.0,
         },
         DistanceAlongTrack::default(),
@@ -95,7 +101,6 @@ fn spawn_track_and_bikes(
             EffectiveSpeed::default(),
             SpeedStats {
                 base_speed: 12.0 + i as f32 * 0.3,
-                accel: 4.5,
                 handling: 1.0,
             },
             DistanceAlongTrack::default(),
@@ -144,7 +149,7 @@ fn spawn_track_and_bikes(
         Checkpoint { index: 0 },
         Mesh3d(gate_mesh.clone()),
         MeshMaterial3d(checkpoint_material),
-        Transform::from_xyz(CHECKPOINT_X, 2.0, 0.0),
+        Transform::from_xyz(checkpoint_x, 2.0, 0.0),
     ));
 
     let finish_material = materials.add(StandardMaterial {
@@ -156,7 +161,7 @@ fn spawn_track_and_bikes(
         FinishLine,
         Mesh3d(gate_mesh),
         MeshMaterial3d(finish_material),
-        Transform::from_xyz(FINISH_X, 2.0, 0.0),
+        Transform::from_xyz(finish_x, 2.0, 0.0),
     ));
 }
 

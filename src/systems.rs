@@ -13,6 +13,10 @@ const BIKE_REDOX_RANGE: f32 = 3.0;
 const BIKE_REDOX_RATE: f32 = 0.5;
 const PLAYER_LATERAL_SPEED: f32 = 6.0;
 
+/// プレイヤー操作中で腐食していないバイクのクエリ型(clippyのtype_complexity回避用)。
+type PlayerInputQuery<'w, 's> =
+    Query<'w, 's, (&'static mut Transform, &'static EffectiveSpeed, &'static SpeedStats), (With<PlayerControlled>, Without<Corroded>)>;
+
 pub fn countdown_system(
     mut timer: ResMut<CountdownTimer>,
     time: Res<Time>,
@@ -27,13 +31,10 @@ pub fn countdown_system(
 /// プレイヤー入力を読み、前進(自動巡航+アクセル/ブレーキ)と左右の車線移動を行う。
 pub fn input_system(
     keyboard: Res<ButtonInput<KeyCode>>,
-    mut query: Query<
-        (&mut Transform, &EffectiveSpeed),
-        (With<PlayerControlled>, Without<Corroded>),
-    >,
+    mut query: PlayerInputQuery,
     time: Res<Time>,
 ) {
-    for (mut transform, effective) in &mut query {
+    for (mut transform, effective, stats) in &mut query {
         let mut throttle = 0.6;
         if keyboard.pressed(KeyCode::ArrowUp) || keyboard.pressed(KeyCode::KeyW) {
             throttle = 1.0;
@@ -51,7 +52,7 @@ pub fn input_system(
         }
 
         transform.translation.x += effective.0 * throttle * time.delta_secs();
-        transform.translation.z += lateral * PLAYER_LATERAL_SPEED * time.delta_secs();
+        transform.translation.z += lateral * PLAYER_LATERAL_SPEED * stats.handling * time.delta_secs();
     }
 }
 
@@ -265,6 +266,40 @@ pub fn race_finish_system(
 
 pub fn race_clock_system(mut clock: ResMut<RaceClock>, time: Res<Time>) {
     clock.elapsed += time.delta();
+}
+
+pub fn corrosion_feedback_system(mut events: MessageReader<CorrosionEvent>) {
+    for event in events.read() {
+        warn!("Bike {:?} corroded and is temporarily disabled", event.bike);
+    }
+}
+
+pub fn checkpoint_feedback_system(mut events: MessageReader<CheckpointPassedEvent>) {
+    for event in events.read() {
+        info!("Bike {:?} passed checkpoint {}", event.bike, event.index);
+    }
+}
+
+/// ラップ完了をログ出力し、`RaceClock::lap_times` に記録する。
+pub fn lap_feedback_system(
+    mut events: MessageReader<LapCompletedEvent>,
+    mut clock: ResMut<RaceClock>,
+) {
+    for event in events.read() {
+        info!(
+            "Bike {:?} completed lap {} at {:.2}s",
+            event.bike,
+            event.lap,
+            event.time.as_secs_f32()
+        );
+        clock.lap_times.push(event.time);
+    }
+}
+
+pub fn race_finished_feedback_system(mut events: MessageReader<RaceFinishedEvent>) {
+    for event in events.read() {
+        info!("Race finished! Ranking: {:?}", event.ranking);
+    }
 }
 
 pub fn camera_follow_system(

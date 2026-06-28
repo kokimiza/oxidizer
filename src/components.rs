@@ -28,7 +28,6 @@ pub struct RustCoating(pub f32);
 #[derive(Component)]
 pub struct SpeedStats {
     pub base_speed: f32,
-    pub accel: f32,
     pub handling: f32,
 }
 

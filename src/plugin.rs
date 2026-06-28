@@ -82,6 +82,17 @@ impl Plugin for RacePlugin {
                 checkpoint_and_lap_system.in_set(RaceSet::CheckpointAndLap),
             )
             .add_systems(Update, ranking_system.in_set(RaceSet::Ranking))
-            .add_systems(Update, race_finish_system.in_set(RaceSet::Finish));
+            .add_systems(
+                Update,
+                (
+                    corrosion_feedback_system,
+                    checkpoint_feedback_system,
+                    lap_feedback_system,
+                    race_finish_system,
+                    race_finished_feedback_system,
+                )
+                    .chain()
+                    .in_set(RaceSet::Finish),
+            );
     }
 }
